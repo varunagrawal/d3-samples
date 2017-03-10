@@ -1,9 +1,7 @@
-
-
 windowWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
 windowHeight = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
 
-var margin = {top: 20, right: 20, bottom: 30, left: 40};
+var margin = { top: 20, right: 20, bottom: 30, left: 40 };
 
 width = windowWidth - margin.left - margin.right;
 height = windowHeight - margin.bottom - margin.top;
@@ -12,69 +10,78 @@ let stopwords = ["a", "about", "above", "after", "again", "against", "all", "am"
 
 
 function getWordCounts(data) {
-    let cleaned_data = data.replace(/[!?.,@#$%&"\[\]|()“”:/-_]/g, " ");
+    let cleaned_data = data.replace(/[(),.!?<>\-_\/\+:]/g, ""); // !?.,@#$%&"\[\]|()“”:/-_\+
     let text = cleaned_data.toLowerCase();
+    // document.getElementById("corpus").innerHTML = text;
 
     let words = text.split(' ')
-    .map(function(x) { return x.trim(); })  // trim out excessive spaces around words
-    .filter(function(x) { return !(!x); })  // remove empty strings
-    .filter(function(x) { return !(stopwords.indexOf(x) > 0); });  // remove stopwords
+        .map(function(x) { return x.trim(); }) // trim out excessive spaces around words
+        .filter(function(x) { return !(!x); }) // remove empty strings
+        .filter(function(x) { return !(stopwords.indexOf(x) >= 0); }) // remove stopwords
+        .filter(function(x) { return x.length > 2; }); // remove single or double character words
 
     let counts = {};
-    for(var i=0; i < words.length; i++) {
+    for (var i = 0; i < words.length; i++) {
         counts[words[i]] = 1 + (counts[words[i]] || 0);
     }
     var arr = [];
     for (var key in counts) {
-        arr.push({text: key, count: counts[key]});
+        arr.push({ text: key, count: counts[key] });
     }
 
-    var res = arr.filter(function(x) {return x.count > 1 && x.count < 20; });
+    var res = arr.filter(function(x) { return x.count > 1 && x.count < 20; });
     return res;
 }
 
 
 var fill = d3.scaleOrdinal(d3.schemeCategory10);
+var xScale = d3.scaleLinear()
+    .range([0, width]);
 
 var svg = d3.select("body")
     .append("svg")
-    .attr("width", "550")
-    .attr("height", "550");
+    .attr("width", "500")
+    .attr("height", "500");
 
 var chartGroup = svg.append("g").attr("transform", "translate(250,250)");
 
 // Make the word cloud
 
-function drawCloud(){
+function drawCloud(words) {
+    // console.log(words);
+
     chartGroup.selectAll("text")
-    .data(word_counts, function(d) { return d.text })
-    .enter().append("text")
-    .style("fill", function(d, i) { return fill(i); })
-    .style("font-size", function(d) { return d.size })
-    .attr("transform", function(d) {
-        return "translate(" + [+d.x, +d.y] + ")rotate(" + d.rotate + ")";
-    })
-    .attr("text-anchor", "middle")
-    .text(function(d) { return d.text });
+        .data(words)
+        .enter().append("text")
+        .style("fill", function(d, i) { return fill(i); })
+        .style("font-size", function(d) { return d.size + "px"; })
+        .attr("transform", function(d) {
+            return "translate(" + [+d.x, +d.y] + ")rotate(" + d.rotate + ")";
+        })
+        .attr("text-anchor", "middle")
+        .text(function(d) { return d.text });
 }
 
 console.log("Loading data");
-d3.json("corpus.json", function(error, data){
+d3.json("corpus.json", function(error, data) {
     if (error) throw error;
-    
+
     var text = data.text;
-    
+
     console.log("calculating stats");
     word_counts = getWordCounts(text);
 
-    console.log(word_counts);
+    // document.getElementById("corpus").innerHTML = word_counts.map(function(x) { return x.text });
+    console.log(word_counts.map(function(x) { return x.text }));
 
     var wordcloud = d3.layout.cloud()
-                .size([500, 500])
-                .words(word_counts)
-                .rotate(function() { return ~~(Math.random()*2)*90})
-                .fontSize(function(d) { return d.count*8 })
-                .on("end", drawCloud)  // register a callback to insert the elements into the group once the layout has been finalized
-                .start();
+        .size([500, 500])
+        // .words(word_counts)
+        .words(word_counts)
+        .padding(2)
+        .rotate(function() { return ~~(Math.random() * 2) * 90; })
+        .fontSize(function(d) { return d.count * 8; })
+        .on("end", drawCloud) // register a callback to insert the elements into the group once the layout has been finalized
+        .start();
 
 });
